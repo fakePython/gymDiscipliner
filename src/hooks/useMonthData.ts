@@ -21,36 +21,56 @@ function saveLocal(dateStr: string, category: Category, status: Status) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
 }
 
-export function useMonthData(year: number, month: number) {
-  const [data, setData] = useState<Map<string, DayEntry>>(new Map());
-  const [loading, setLoading] = useState(true);
+function getDaysCollection(uid: string | null) {
+  if (!db || !uid) return null;
+  return collection(db, 'users', uid, 'days');
+}
 
-  const loadFromLocal = useCallback(() => {
-    const allData = getAllLocal();
-    const prefix = toDateStr(year, month, 1).slice(0, 7);
-    const monthData = new Map<string, DayEntry>();
-    for (const [key, entry] of Object.entries(allData)) {
-      if (key.startsWith(prefix)) {
-        monthData.set(key, entry);
-      }
+function getLocalMonthData(year: number, month: number): Map<string, DayEntry> {
+  const allData = getAllLocal();
+  const prefix = toDateStr(year, month, 1).slice(0, 7);
+  const monthData = new Map<string, DayEntry>();
+  for (const [key, entry] of Object.entries(allData)) {
+    if (key.startsWith(prefix)) {
+      monthData.set(key, entry);
     }
-    setData(monthData);
-    setLoading(false);
-  }, [year, month]);
+  }
+  return monthData;
+}
+
+export function useMonthData(year: number, month: number, uid: string | null) {
+  const useFirestore = isFirebaseConfigured && getDaysCollection(uid) != null;
+
+  const [firestoreData, setFirestoreData] = useState<Map<string, DayEntry>>(new Map());
+  const [firestoreLoading, setFirestoreLoading] = useState(useFirestore);
+  const [firestoreKey, setFirestoreKey] = useState(`${year}-${month}-${uid}`);
+  const [localData, setLocalData] = useState<Map<string, DayEntry>>(() => getLocalMonthData(year, month));
+  const [localKey, setLocalKey] = useState(`${year}-${month}`);
+
+  const currentLocalKey = `${year}-${month}`;
+  if (currentLocalKey !== localKey) {
+    setLocalKey(currentLocalKey);
+    setLocalData(getLocalMonthData(year, month));
+  }
+
+  const currentFirestoreKey = `${year}-${month}-${uid}`;
+  if (useFirestore && currentFirestoreKey !== firestoreKey) {
+    setFirestoreKey(currentFirestoreKey);
+    setFirestoreLoading(true);
+    setFirestoreData(new Map());
+  }
 
   useEffect(() => {
-    setLoading(true);
+    const coll = getDaysCollection(uid);
+    if (!isFirebaseConfigured || !coll) return;
 
-    if (!isFirebaseConfigured || !db) {
-      loadFromLocal();
-      return;
-    }
+    let cancelled = false;
 
     const startDate = toDateStr(year, month, 1);
     const endDate = toDateStr(year, month, 31);
 
     const q = query(
-      collection(db, 'days'),
+      coll,
       where(documentId(), '>=', startDate),
       where(documentId(), '<=', endDate)
     );
@@ -58,36 +78,49 @@ export function useMonthData(year: number, month: number) {
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
+        if (cancelled) return;
         const entries = new Map<string, DayEntry>();
         snapshot.forEach((d) => {
           entries.set(d.id, d.data() as DayEntry);
         });
-        setData(entries);
-        setLoading(false);
+        setFirestoreData(entries);
+        setFirestoreLoading(false);
       },
       () => {
-        loadFromLocal();
+        if (cancelled) return;
+        setFirestoreData(getLocalMonthData(year, month));
+        setFirestoreLoading(false);
       }
     );
 
-    return unsubscribe;
-  }, [year, month, loadFromLocal]);
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, [year, month, uid]);
+
+  const data = useFirestore ? firestoreData : localData;
+  const loading = useFirestore ? firestoreLoading : false;
 
   const updateStatus = useCallback(async (dateStr: string, category: Category, status: Status) => {
     saveLocal(dateStr, category, status);
 
-    setData((prev) => {
+    const updater = (prev: Map<string, DayEntry>) => {
       const next = new Map(prev);
       const existing = next.get(dateStr) ?? { gym: 'none', diet: 'none', sleep: 'none' };
       next.set(dateStr, { ...existing, [category]: status });
       return next;
-    });
+    };
 
-    if (isFirebaseConfigured && db) {
-      const ref = doc(db, 'days', dateStr);
+    const coll = getDaysCollection(uid);
+    if (isFirebaseConfigured && coll) {
+      setFirestoreData(updater);
+      const ref = doc(coll, dateStr);
       await setDoc(ref, { [category]: status }, { merge: true });
+    } else {
+      setLocalData(updater);
     }
-  }, []);
+  }, [uid]);
 
   return { data, loading, updateStatus };
 }

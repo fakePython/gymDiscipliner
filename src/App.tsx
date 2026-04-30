@@ -2,8 +2,11 @@ import { useState } from 'react';
 import { CalendarHeader } from './components/CalendarHeader';
 import { Calendar } from './components/Calendar';
 import { StatusModal } from './components/StatusModal';
+import { UserMenu } from './components/UserMenu';
 import { useMonthData } from './hooks/useMonthData';
 import { useTheme } from './hooks/useTheme';
+import { useAuth } from './hooks/useAuth';
+import { isFirebaseConfigured } from './firebase';
 import type { Category, Status } from './types';
 
 function App() {
@@ -12,7 +15,8 @@ function App() {
   const [month, setMonth] = useState(now.getMonth());
   const [selectedDate, setSelectedDate] = useState<{ dateStr: string; day: number } | null>(null);
 
-  const { data, loading, updateStatus } = useMonthData(year, month);
+  const { user, loading: authLoading, signIn, signOut } = useAuth();
+  const { data, loading, updateStatus } = useMonthData(year, month, user?.uid ?? null);
   const { theme, toggle } = useTheme();
 
   const handlePrev = () => {
@@ -41,11 +45,27 @@ function App() {
     updateStatus(dateStr, category, status);
   };
 
+  if (authLoading) {
+    return (
+      <div className="max-w-7xl mx-auto py-4 px-2 sm:px-4 lg:px-6">
+        <div className="text-center py-20 text-slate-400 dark:text-slate-500">Loading...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-7xl mx-auto py-4 px-2 sm:px-4 lg:px-6">
-      <h1 className="text-center text-2xl font-bold text-slate-800 dark:text-slate-100 mb-1">
-        Gym Discipliner
-      </h1>
+      <div className="flex items-center justify-between mb-1">
+        <div className="w-24" />
+        <h1 className="text-center text-2xl font-bold text-slate-800 dark:text-slate-100">
+          Gym Discipliner
+        </h1>
+        <div className="w-24 flex justify-end">
+          {isFirebaseConfigured && (
+            <UserMenu user={user} onSignIn={signIn} onSignOut={signOut} />
+          )}
+        </div>
+      </div>
       <p className="text-center text-sm text-slate-500 dark:text-slate-400 mb-4">
         Track your daily gym, diet & sleep
       </p>
