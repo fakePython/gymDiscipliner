@@ -1,10 +1,11 @@
-import type { DayEntry, Status } from '../types';
+import type { DayEntry, DisciplinerField, Status } from '../types';
 import { isToday } from '../utils/dateHelpers';
 
 interface DayCellProps {
   day: number;
   year: number;
   month: number;
+  fields: DisciplinerField[];
   entry?: DayEntry;
   onClick: () => void;
 }
@@ -16,11 +17,8 @@ const STATUS_BG: Record<Status, string> = {
   none: '',
 };
 
-export function DayCell({ day, year, month, entry, onClick }: DayCellProps) {
+export function DayCell({ day, year, month, fields, entry, onClick }: DayCellProps) {
   const today = isToday(year, month, day);
-  const gym = entry?.gym ?? 'none';
-  const diet = entry?.diet ?? 'none';
-  const sleep = entry?.sleep ?? 'none';
 
   return (
     <button
@@ -37,9 +35,9 @@ export function DayCell({ day, year, month, entry, onClick }: DayCellProps) {
       `}
     >
       <div className="absolute inset-0 flex">
-        <div className={`flex-1 ${STATUS_BG[gym]}`} />
-        <div className={`flex-1 ${STATUS_BG[diet]}`} />
-        <div className={`flex-1 ${STATUS_BG[sleep]}`} />
+        {fields.map((f) => (
+          <div key={f.id} className={`flex-1 ${STATUS_BG[entry?.[f.id] ?? 'none']}`} />
+        ))}
       </div>
       <span
         className={`

@@ -1,17 +1,18 @@
-import type { DayEntry } from '../types';
+import type { DayEntry, DisciplinerField } from '../types';
 import { getDaysInMonth, getFirstDayOfWeek, toDateStr } from '../utils/dateHelpers';
 import { DayCell } from './DayCell';
 
 interface CalendarProps {
   year: number;
   month: number;
+  fields: DisciplinerField[];
   data: Map<string, DayEntry>;
   onDayClick: (dateStr: string, day: number) => void;
 }
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-export function Calendar({ year, month, data, onDayClick }: CalendarProps) {
+export function Calendar({ year, month, fields, data, onDayClick }: CalendarProps) {
   const daysInMonth = getDaysInMonth(year, month);
   const firstDay = getFirstDayOfWeek(year, month);
 
@@ -28,6 +29,7 @@ export function Calendar({ year, month, data, onDayClick }: CalendarProps) {
         day={day}
         year={year}
         month={month}
+        fields={fields}
         entry={data.get(dateStr)}
         onClick={() => onDayClick(dateStr, day)}
       />

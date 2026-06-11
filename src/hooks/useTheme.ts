@@ -8,7 +8,7 @@ function getSystemTheme(): Theme {
 
 export function useTheme() {
   const [theme, setTheme] = useState<Theme>(() => {
-    const stored = localStorage.getItem('gymDescipliner_theme');
+    const stored = localStorage.getItem('discipliner_theme') ?? localStorage.getItem('gymDescipliner_theme');
     if (stored === 'light' || stored === 'dark') return stored;
     return getSystemTheme();
   });
@@ -20,13 +20,13 @@ export function useTheme() {
     } else {
       root.classList.remove('dark');
     }
-    localStorage.setItem('gymDescipliner_theme', theme);
+    localStorage.setItem('discipliner_theme', theme);
   }, [theme]);
 
   useEffect(() => {
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
     const handler = () => {
-      const stored = localStorage.getItem('gymDescipliner_theme');
+      const stored = localStorage.getItem('discipliner_theme');
       if (!stored) setTheme(mq.matches ? 'dark' : 'light');
     };
     mq.addEventListener('change', handler);
