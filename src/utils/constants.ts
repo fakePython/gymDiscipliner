@@ -1,4 +1,4 @@
-import type { Status, Category } from '../types';
+import type { Discipliner, Status } from '../types';
 
 export const STATUS_COLORS: Record<Status, string> = {
   green: 'bg-emerald-500',
@@ -14,10 +14,31 @@ export const STATUS_LABELS: Record<Status, string> = {
   none: 'Not set',
 };
 
-export const CATEGORY_LABELS: Record<Category, string> = {
-  gym: 'Gym',
-  diet: 'Diet',
-  sleep: 'Sleep',
+export const MAX_DISCIPLINERS = 5;
+export const MAX_FIELDS = 5;
+
+export const GYM_PRESET: Discipliner = {
+  id: 'gym',
+  name: 'Gym',
+  fields: [
+    { id: 'gym', label: 'Gym' },
+    { id: 'diet', label: 'Diet' },
+    { id: 'sleep', label: 'Sleep' },
+  ],
+  isPreset: true,
+  nameEditable: false,
+  fieldsEditable: false,
 };
 
-export const CATEGORIES: Category[] = ['gym', 'diet', 'sleep'];
+export const LEARNING_PRESET: Discipliner = {
+  id: 'learning',
+  name: 'Learning',
+  fields: [
+    { id: 'dsa', label: 'DSA' },
+    { id: 'systemDesign', label: 'System Design' },
+    { id: 'selfProject', label: 'Self Project' },
+  ],
+  isPreset: true,
+  nameEditable: true,
+  fieldsEditable: true,
+};

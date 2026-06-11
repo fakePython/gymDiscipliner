@@ -3,47 +3,59 @@ import { CalendarHeader } from './components/CalendarHeader';
 import { Calendar } from './components/Calendar';
 import { StatusModal } from './components/StatusModal';
 import { UserMenu } from './components/UserMenu';
+import { DisciplinerTabs } from './components/DisciplinerTabs';
+import { CreateDisciplinerModal } from './components/CreateDisciplinerModal';
+import { EditDisciplinerModal } from './components/EditDisciplinerModal';
 import { useMonthData } from './hooks/useMonthData';
 import { useTheme } from './hooks/useTheme';
 import { useAuth } from './hooks/useAuth';
+import { useDiscipliners } from './hooks/useDiscipliners';
 import { isFirebaseConfigured } from './firebase';
-import type { Category, Status } from './types';
+import type { Status } from './types';
 
 function App() {
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth());
   const [selectedDate, setSelectedDate] = useState<{ dateStr: string; day: number } | null>(null);
+  const [activeDisciplinerId, setActiveDisciplinerId] = useState('gym');
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [editingDisciplinerId, setEditingDisciplinerId] = useState<string | null>(null);
 
   const { user, loading: authLoading, signIn, signOut } = useAuth();
-  const { data, loading, updateStatus } = useMonthData(year, month, user?.uid ?? null);
+  const { discipliners, createDiscipliner, updateDiscipliner, deleteDiscipliner } = useDiscipliners(user?.uid ?? null);
+  const activeDiscipliner = discipliners.find((d) => d.id === activeDisciplinerId) ?? discipliners[0];
+  const { data, loading, updateStatus } = useMonthData(activeDiscipliner.id, year, month, user?.uid ?? null);
   const { theme, toggle } = useTheme();
 
   const handlePrev = () => {
-    if (month === 0) {
-      setMonth(11);
-      setYear(year - 1);
-    } else {
-      setMonth(month - 1);
-    }
+    if (month === 0) { setMonth(11); setYear(year - 1); }
+    else setMonth(month - 1);
   };
 
   const handleNext = () => {
-    if (month === 11) {
-      setMonth(0);
-      setYear(year + 1);
-    } else {
-      setMonth(month + 1);
-    }
+    if (month === 11) { setMonth(0); setYear(year + 1); }
+    else setMonth(month + 1);
   };
 
-  const handleDayClick = (dateStr: string, day: number) => {
-    setSelectedDate({ dateStr, day });
+  const handleUpdate = (dateStr: string, fieldId: string, status: Status) => {
+    updateStatus(dateStr, fieldId, status);
   };
 
-  const handleUpdate = (dateStr: string, category: Category, status: Status) => {
-    updateStatus(dateStr, category, status);
+  const handleTabSelect = (id: string) => {
+    setActiveDisciplinerId(id);
+    setSelectedDate(null);
   };
+
+  const handleDelete = async (id: string) => {
+    await deleteDiscipliner(id);
+    if (activeDisciplinerId === id) setActiveDisciplinerId('gym');
+    setEditingDisciplinerId(null);
+  };
+
+  const editingDiscipliner = editingDisciplinerId
+    ? discipliners.find((d) => d.id === editingDisciplinerId)
+    : null;
 
   if (authLoading) {
     return (
@@ -58,7 +70,7 @@ function App() {
       <div className="flex items-center justify-between mb-1">
         <div className="w-24" />
         <h1 className="text-center text-2xl font-bold text-slate-800 dark:text-slate-100">
-          Gym Discipliner
+          Discipliner
         </h1>
         <div className="w-24 flex justify-end">
           {isFirebaseConfigured && (
@@ -67,8 +79,16 @@ function App() {
         </div>
       </div>
       <p className="text-center text-sm text-slate-500 dark:text-slate-400 mb-4">
-        Track your daily gym, diet & sleep
+        Track your daily habits
       </p>
+
+      <DisciplinerTabs
+        discipliners={discipliners}
+        activeId={activeDiscipliner.id}
+        onSelect={handleTabSelect}
+        onAdd={() => setShowCreateModal(true)}
+        onEdit={(id) => setEditingDisciplinerId(id)}
+      />
 
       <CalendarHeader
         year={year}
@@ -85,8 +105,9 @@ function App() {
         <Calendar
           year={year}
           month={month}
+          fields={activeDiscipliner.fields}
           data={data}
-          onDayClick={handleDayClick}
+          onDayClick={(dateStr, day) => setSelectedDate({ dateStr, day })}
         />
       )}
 
@@ -94,27 +115,40 @@ function App() {
         <StatusModal
           dateStr={selectedDate.dateStr}
           day={selectedDate.day}
+          discipliner={activeDiscipliner}
           entry={data.get(selectedDate.dateStr)}
           onUpdate={handleUpdate}
           onClose={() => setSelectedDate(null)}
         />
       )}
 
-      <div className="mt-4 flex justify-center gap-6 text-xs text-slate-500 dark:text-slate-400">
-        <span className="flex items-center gap-1.5">
-          <span className="w-4 h-3 rounded-sm bg-emerald-400/80 dark:bg-emerald-500/70 inline-block" /> Gym
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-4 h-3 rounded-sm bg-amber-300/80 dark:bg-yellow-400/60 inline-block" /> Diet
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-4 h-3 rounded-sm bg-red-400/80 dark:bg-red-500/60 inline-block" /> Sleep
-        </span>
+      {showCreateModal && (
+        <CreateDisciplinerModal
+          onConfirm={(name, fieldLabels) => createDiscipliner(name, fieldLabels)}
+          onClose={() => setShowCreateModal(false)}
+        />
+      )}
+
+      {editingDiscipliner && (
+        <EditDisciplinerModal
+          discipliner={editingDiscipliner}
+          onSave={(patch) => updateDiscipliner(editingDiscipliner.id, patch)}
+          onDelete={() => handleDelete(editingDiscipliner.id)}
+          onClose={() => setEditingDisciplinerId(null)}
+        />
+      )}
+
+      <div className="mt-4 flex justify-center gap-6 text-xs text-slate-500 dark:text-slate-400 flex-wrap">
+        {activeDiscipliner.fields.map((f) => (
+          <span key={f.id} className="flex items-center gap-1.5">
+            <span className="w-4 h-3 rounded-sm bg-slate-300 dark:bg-slate-600 inline-block" /> {f.label}
+          </span>
+        ))}
       </div>
       <div className="mt-2 flex justify-center gap-4 text-[10px] text-slate-400 dark:text-slate-500">
-        <span>Green = Done</span>
-        <span>Yellow = Partial</span>
-        <span>Red = Skipped</span>
+        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" /> Done</span>
+        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-yellow-400 inline-block" /> Partial</span>
+        <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500 inline-block" /> Skipped</span>
       </div>
     </div>
   );

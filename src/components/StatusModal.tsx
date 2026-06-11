@@ -1,12 +1,12 @@
-import { useEffect, useRef } from 'react';
-import type { Category, DayEntry, Status } from '../types';
-import { CATEGORIES, CATEGORY_LABELS } from '../utils/constants';
+import { useEffect } from 'react';
+import type { Discipliner, DayEntry, Status } from '../types';
 
 interface StatusModalProps {
   dateStr: string;
   day: number;
+  discipliner: Discipliner;
   entry?: DayEntry;
-  onUpdate: (dateStr: string, category: Category, status: Status) => void;
+  onUpdate: (dateStr: string, fieldId: string, status: Status) => void;
   onClose: () => void;
 }
 
@@ -16,18 +16,7 @@ const STATUS_OPTIONS: { status: Status; label: string; color: string; activeRing
   { status: 'red', label: 'Skipped', color: 'bg-red-500', activeRing: 'ring-red-400' },
 ];
 
-export function StatusModal({ dateStr, day, entry, onUpdate, onClose }: StatusModalProps) {
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        onClose();
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [onClose]);
+export function StatusModal({ dateStr, day, discipliner, entry, onUpdate, onClose }: StatusModalProps) {
 
   useEffect(() => {
     function handleEscape(e: KeyboardEvent) {
@@ -45,16 +34,17 @@ export function StatusModal({ dateStr, day, entry, onUpdate, onClose }: StatusMo
   const monthLabel = monthNames[parseInt(monthStr) - 1];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 dark:bg-black/60 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 dark:bg-black/60 backdrop-blur-sm" onClick={onClose}>
       <div
-        ref={ref}
         className="w-full sm:w-96 bg-white dark:bg-slate-800 rounded-t-2xl sm:rounded-2xl p-6 shadow-2xl border border-slate-200 dark:border-slate-700"
+        onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-5">
           <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100">
             {monthLabel} {day}
           </h3>
           <button
+            type="button"
             onClick={onClose}
             className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
           >
@@ -65,18 +55,19 @@ export function StatusModal({ dateStr, day, entry, onUpdate, onClose }: StatusMo
         </div>
 
         <div className="space-y-4">
-          {CATEGORIES.map((cat) => {
-            const current = entry?.[cat] ?? 'none';
+          {discipliner.fields.map((field) => {
+            const current = entry?.[field.id] ?? 'none';
             return (
-              <div key={cat} className="flex items-center justify-between">
-                <span className="text-sm font-medium text-slate-600 dark:text-slate-300 w-14">
-                  {CATEGORY_LABELS[cat]}
+              <div key={field.id} className="flex items-center justify-between">
+                <span className="text-sm font-medium text-slate-600 dark:text-slate-300 w-28 truncate">
+                  {field.label}
                 </span>
                 <div className="flex gap-2">
                   {STATUS_OPTIONS.map(({ status, label, color, activeRing }) => (
                     <button
                       key={status}
-                      onClick={() => onUpdate(dateStr, cat, status === current ? 'none' : status)}
+                      type="button"
+                      onClick={() => onUpdate(dateStr, field.id, status === current ? 'none' : status)}
                       title={label}
                       className={`
                         w-10 h-10 rounded-full ${color} transition-all
