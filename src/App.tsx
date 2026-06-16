@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Routes, Route } from 'react-router-dom';
 import { CalendarHeader } from './components/CalendarHeader';
 import { Calendar } from './components/Calendar';
 import { StatusModal } from './components/StatusModal';
@@ -6,6 +7,8 @@ import { UserMenu } from './components/UserMenu';
 import { DisciplinerTabs } from './components/DisciplinerTabs';
 import { CreateDisciplinerModal } from './components/CreateDisciplinerModal';
 import { EditDisciplinerModal } from './components/EditDisciplinerModal';
+import { AdminGuard } from './components/admin/AdminGuard';
+import { AdminPage } from './pages/AdminPage';
 import { useMonthData } from './hooks/useMonthData';
 import { useTheme } from './hooks/useTheme';
 import { useAuth } from './hooks/useAuth';
@@ -66,7 +69,10 @@ function App() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto py-4 px-2 sm:px-4 lg:px-6">
+    <Routes>
+      <Route path="/admin" element={<AdminGuard><AdminPage /></AdminGuard>} />
+      <Route path="*" element={
+        <div className="max-w-7xl mx-auto py-4 px-2 sm:px-4 lg:px-6">
       <div className="flex items-center justify-between mb-1">
         <div className="w-24" />
         <h1 className="text-center text-2xl font-bold text-slate-800 dark:text-slate-100">
@@ -151,6 +157,8 @@ function App() {
         <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500 inline-block" /> Skipped</span>
       </div>
     </div>
+      } />
+    </Routes>
   );
 }
 
