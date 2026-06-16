@@ -30,7 +30,7 @@ export function AdminGuard({ children }: Props) {
         <p className="text-slate-500 dark:text-slate-400">
           {!user ? 'You must be signed in to access this page.' : 'You do not have permission to access this page.'}
         </p>
-        <a href="/gymDiscipliner/" className="text-sm text-blue-500 underline">
+        <a href="/" className="text-sm text-blue-500 underline">
           Go back to the app
         </a>
       </div>
