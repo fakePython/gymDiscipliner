@@ -1,6 +1,6 @@
 # Discipliner
 
-A React + TypeScript monthly calendar app for tracking daily habits across multiple custom-named trackers. Each "discipliner" (tab) has its own fields, its own calendar, and its own data — fully isolated. Includes an admin dashboard for monitoring all users.
+A React + TypeScript monthly calendar app for tracking daily habits across multiple custom-named trackers. Each "discipliner" (tab) has its own fields, its own calendar, and its own data — fully isolated.
 
 ## Features
 
@@ -11,7 +11,6 @@ A React + TypeScript monthly calendar app for tracking daily habits across multi
 - **Presets**: Gym (locked) and Learning (editable name + fields, not deletable)
 - **Dark mode** toggle with system preference detection
 - **Google Sign-In**: data syncs per user via Firestore; falls back to localStorage offline
-- **Admin dashboard**: role-protected `/admin` route with user list, global stats, and per-user analytics
 
 ## Tech Stack
 
@@ -19,7 +18,6 @@ A React + TypeScript monthly calendar app for tracking daily habits across multi
 |---|---|
 | UI | React 19 + TypeScript |
 | Styling | Tailwind CSS v4 (`@tailwindcss/vite`, CSS-based config) |
-| Routing | react-router-dom v7 |
 | Backend | Firebase Firestore (optional) + localStorage fallback |
 | Auth | Firebase Auth — Google Sign-In |
 | Build | Vite 8 |
@@ -30,31 +28,25 @@ A React + TypeScript monthly calendar app for tracking daily habits across multi
 ### Component Tree
 
 ```
-BrowserRouter (basename=/gymDiscipliner)
-├── / → App
-│   ├── [header]  <h1>Discipliner</h1>  +  UserMenu
-│   │
-│   ├── DisciplinerTabs
-│   │   ├── [tab button] Gym            (no edit icon — fully locked)
-│   │   ├── [tab button] Learning  ✏   (edit icon — name+fields editable)
-│   │   ├── [tab button] <custom>  ✏   (edit icon — full edit + delete)
-│   │   └── [+]  Add discipliner        (hidden when 5 tabs exist)
-│   │
-│   ├── CalendarHeader
-│   │   └── ← June 2026 →  +  🌙 dark mode toggle
-│   │
-│   ├── Calendar
-│   │   └── DayCell ×28-31
-│   │       └── N dynamic color stripes (one per field)
-│   │
-│   ├── StatusModal?             — day detail: field rows × 3 color buttons
-│   ├── CreateDisciplinerModal?  — tab name + 1-5 field names
-│   └── EditDisciplinerModal?    — rename, add/remove fields, delete discipliner
+App
+├── [header]  <h1>Discipliner</h1>  +  UserMenu
 │
-└── /admin → AdminGuard → AdminPage
-    ├── GlobalStatsCards         — total users, total entries, top discipliners
-    ├── UserListTable            — all users with join date + last active
-    └── UserDetailDrawer         — per-user field analytics + streaks
+├── DisciplinerTabs
+│   ├── [tab button] Gym            (no edit icon — fully locked)
+│   ├── [tab button] Learning  ✏   (edit icon — name+fields editable)
+│   ├── [tab button] <custom>  ✏   (edit icon — full edit + delete)
+│   └── [+]  Add discipliner        (hidden when 5 tabs exist)
+│
+├── CalendarHeader
+│   └── ← June 2026 →  +  🌙 dark mode toggle
+│
+├── Calendar
+│   └── DayCell ×28-31
+│       └── N dynamic color stripes (one per field)
+│
+├── StatusModal?          — day detail: field rows × 3 color buttons
+├── CreateDisciplinerModal?  — tab name + 1-5 field names
+└── EditDisciplinerModal?    — rename, add/remove fields, delete discipliner
 ```
 
 ### Data Flow
@@ -75,11 +67,6 @@ useMonthData(disciplinerId, year, month, uid)
 
 Calendar(fields, data) → DayCell(fields, entry)
 StatusModal(discipliner, entry, onUpdate)
-
-useAdminData()  [admin only]
-  └─ collectionGroup('profile')       → user list
-  └─ collectionGroup('days')          → total entry count
-  └─ collectionGroup('disciplinerConfig') → top discipliner names
 ```
 
 ### Storage Layout
@@ -87,7 +74,6 @@ useAdminData()  [admin only]
 ```
 Firestore
 └── users/{uid}/
-    ├── profile/v1                    ← { role, createdAt, displayName, email }
     ├── disciplinerConfig/v1          ← DisciplinerConfig (tab names, field labels, custom list)
     └── discipliners/
         ├── gym/days/{YYYY-MM-DD}     ← { gym, diet, sleep }
@@ -132,17 +118,15 @@ interface DisciplinerConfig {
 
 ```
 src/
-├── App.tsx                          # Top-level routing + state + layout orchestration
+├── App.tsx                          # Top-level state + layout orchestration
 ├── types.ts                         # All shared types
 ├── firebase.ts                      # Firebase init + isFirebaseConfigured flag
 │
 ├── hooks/
 │   ├── useDiscipliners.ts           # Config persistence; discipliner CRUD
 │   ├── useMonthData.ts              # Per-discipliner calendar data (Firestore + localStorage)
-│   ├── useAuth.ts                   # Firebase Google Auth + profile seeding
-│   ├── useTheme.ts                  # Dark mode toggle
-│   ├── useAdminRole.ts              # Reads users/{uid}/profile/v1 → isAdmin
-│   └── useAdminData.ts              # Fetches all users' data for admin dashboard
+│   ├── useAuth.ts                   # Firebase Google Auth
+│   └── useTheme.ts                  # Dark mode toggle
 │
 ├── components/
 │   ├── DisciplinerTabs.tsx          # Tab bar + "+" button
@@ -152,15 +136,7 @@ src/
 │   ├── CalendarHeader.tsx           # Month nav + theme toggle
 │   ├── DayCell.tsx                  # Dynamic N-stripe day cell
 │   ├── StatusModal.tsx              # Per-day status picker
-│   ├── UserMenu.tsx                 # Sign in/out
-│   └── admin/
-│       ├── AdminGuard.tsx           # Route guard — 403 for non-admins
-│       ├── GlobalStats.tsx          # Stat cards: users, entries, top discipliners
-│       ├── UserListTable.tsx        # Sortable table of all users
-│       └── UserDetailDrawer.tsx     # Per-user field analytics + streak
-│
-├── pages/
-│   └── AdminPage.tsx                # /admin route — assembles admin components
+│   └── UserMenu.tsx                 # Sign in/out
 │
 └── utils/
     ├── constants.ts                 # STATUS_COLORS, STATUS_LABELS, GYM_PRESET, LEARNING_PRESET
@@ -175,42 +151,14 @@ src/
 | Learning | ✗ | ✓ | ✓ |
 | Custom | ✓ | ✓ | ✓ |
 
-## Admin Dashboard
-
-The `/admin` route is protected by `AdminGuard` — only users with `role: 'admin'` in their Firestore profile can access it.
-
-### Promoting a user to admin
-
-1. Sign in to the app at least once (this creates `users/{uid}/profile/v1`)
-2. In the Firebase console → Firestore → `users/{uid}/profile/v1`, set `role` to `"admin"`
-
-### Firestore Security Rules
-
-The `role` field must not be user-writable. Use this rule for the profile document:
-
-```
-match /users/{userId}/profile/{docId} {
-  allow read: if request.auth != null && request.auth.uid == userId;
-  allow write: if request.auth != null
-    && request.auth.uid == userId
-    && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']));
-  allow read: if request.auth != null &&
-    get(/databases/$(database)/documents/users/$(request.auth.uid)/profile/v1).data.role == 'admin';
-}
-```
-
 ## Commands
 
 ```bash
-npm run dev      # Vite dev server with HMR (http://localhost:5173/gymDiscipliner/)
+npm run dev      # Vite dev server with HMR (http://localhost:5173)
 npm run build    # Type-check (tsc -b) then Vite build
 npm run lint     # ESLint
 npm run preview  # Serve production build locally
 ```
-
-### Local dev without Firebase
-
-Navigate to `http://localhost:5173/gymDiscipliner/admin?admin=1` to bypass the auth guard and preview the admin UI with empty data. This bypass is only active when Firebase env vars are absent — it is inert in production.
 
 ## Environment Variables
 
@@ -227,7 +175,7 @@ All optional — app falls back to localStorage-only mode when absent.
 
 ## Deployment
 
-GitHub Pages via `.github/workflows/deploy.yml`. Vite `base` is set to `/gymDiscipliner/` to match the repo name. Routes: `/gymDiscipliner/` (app) and `/gymDiscipliner/admin` (admin dashboard).
+GitHub Pages via `.github/workflows/deploy.yml`. Vite `base` is set to `/gymDiscipliner/` to match the repo name.
 
 ## Migration
 
@@ -238,4 +186,3 @@ Existing gym data (from v1) is migrated automatically on first access:
 ## Archives
 
 - [`archives/README_v1.md`](archives/README_v1.md) — original gymDiscipliner (single tracker, v1)
-- [`archives/README_v2.md`](archives/README_v2.md) — multi-tab discipliner without admin dashboard
