@@ -11,6 +11,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   deploy:
+    if: false # Disabled — app is now deployed via Vercel. See vercel.json.
     runs-on: ubuntu-latest
     environment:
       name: github-pages

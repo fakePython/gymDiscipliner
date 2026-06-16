@@ -202,7 +202,7 @@ match /users/{userId}/profile/{docId} {
 ## Commands
 
 ```bash
-npm run dev      # Vite dev server with HMR (http://localhost:5173/gymDiscipliner/)
+npm run dev      # Vite dev server with HMR (http://localhost:5173/)
 npm run build    # Type-check (tsc -b) then Vite build
 npm run lint     # ESLint
 npm run preview  # Serve production build locally
@@ -210,7 +210,7 @@ npm run preview  # Serve production build locally
 
 ### Local dev without Firebase
 
-Navigate to `http://localhost:5173/gymDiscipliner/admin?admin=1` to bypass the auth guard and preview the admin UI with empty data. This bypass is only active when Firebase env vars are absent — it is inert in production.
+Navigate to `http://localhost:5173/admin?admin=1` to bypass the auth guard and preview the admin UI with empty data. This bypass is only active when Firebase env vars are absent — it is inert in production.
 
 ## Environment Variables
 
@@ -227,7 +227,41 @@ All optional — app falls back to localStorage-only mode when absent.
 
 ## Deployment
 
-GitHub Pages via `.github/workflows/deploy.yml`. Vite `base` is set to `/gymDiscipliner/` to match the repo name. Routes: `/gymDiscipliner/` (app) and `/gymDiscipliner/admin` (admin dashboard).
+Deployed via **Vercel**. On every push to `main`, Vercel automatically builds and deploys. Routes work natively — no hacks needed.
+
+The `vercel.json` rewrite rule serves `index.html` for all paths, enabling client-side routing:
+```json
+{ "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }] }
+```
+
+The old GitHub Pages workflow (`.github/workflows/deploy.yml`) is kept in the repo but disabled. The `gh-pages` branch serves a redirect page pointing to the Vercel URL so old bookmarks continue to work.
+
+### Why Vercel instead of GitHub Pages
+
+GitHub Pages is a static file server — it returns 404 for any path that doesn't map to a physical file. This breaks client-side routing: visiting `/admin` directly or refreshing on any non-root route fails. The common workaround (copying `index.html` → `404.html`) is fragile and causes real 404s to silently return 200. Vercel handles SPA routing natively with a single rewrite rule, gives preview deployments per PR, and has no meaningful cost for personal projects.
+
+### Reverting to GitHub Pages
+
+If Vercel is ever abandoned, here's everything needed to go back:
+
+1. **`vite.config.ts`** — restore `base: '/gymDiscipliner/'`
+2. **`src/main.tsx`** — restore `basename="/gymDiscipliner/"` on `<BrowserRouter>`
+3. **`src/components/admin/AdminGuard.tsx`** — change `href="/"` back to `href="/gymDiscipliner/"`
+4. **`src/pages/AdminPage.tsx`** — change `href="/"` back to `href="/gymDiscipliner/"`
+5. **`vite.config.ts`** — add the 404.html copy plugin to handle client-side routing:
+   ```ts
+   import { resolve } from 'path'
+   import { copyFileSync } from 'fs'
+   // inside plugins array:
+   {
+     name: 'copy-404',
+     closeBundle() {
+       copyFileSync(resolve(__dirname, 'dist/index.html'), resolve(__dirname, 'dist/404.html'));
+     },
+   }
+   ```
+6. **`.github/workflows/deploy.yml`** — remove the `if: false` line from the deploy job
+7. **`vercel.json`** — can be deleted or left (ignored when repo is disconnected from Vercel)
 
 ## Migration
 
@@ -238,4 +272,4 @@ Existing gym data (from v1) is migrated automatically on first access:
 ## Archives
 
 - [`archives/README_v1.md`](archives/README_v1.md) — original gymDiscipliner (single tracker, v1)
-- [`archives/README_v2.md`](archives/README_v2.md) — multi-tab discipliner without admin dashboard
+- [`archives/README_v2.md`](archives/README_v2.md) — multi-tab discipliner, GitHub Pages deployment, no admin dashboard

@@ -15,7 +15,7 @@ export function AdminPage() {
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
       <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <a href="/gymDiscipliner/" className="text-sm text-blue-500 hover:underline">← App</a>
+          <a href="/" className="text-sm text-blue-500 hover:underline">← App</a>
           <h1 className="text-lg font-bold text-slate-800 dark:text-slate-100">Admin Dashboard</h1>
         </div>
         <button
