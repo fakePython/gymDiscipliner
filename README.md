@@ -186,18 +186,67 @@ The `/admin` route is protected by `AdminGuard` — only users with `role: 'admi
 
 ### Firestore Security Rules
 
-The `role` field must not be user-writable. Use this rule for the profile document:
+Two things to enforce: (1) users can only read/write their own data, and (2) the `role` field can never be written by the client. The admin dashboard's user listing uses a `collectionGroup('profile')` query, which requires a recursive-wildcard rule on the `profile` collection name.
+
+The `users/{uid}/days/...` rule is for **v1 legacy data** — `useMonthData` still reads/writes that path during the lazy v1→v2 migration. Keep this rule until you're sure no users have legacy data left.
 
 ```
-match /users/{userId}/profile/{docId} {
-  allow read: if request.auth != null && request.auth.uid == userId;
-  allow write: if request.auth != null
-    && request.auth.uid == userId
-    && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']));
-  allow read: if request.auth != null &&
-    get(/databases/$(database)/documents/users/$(request.auth.uid)/profile/v1).data.role == 'admin';
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // v1 legacy path — read/write needed for the lazy migration in useMonthData.
+    match /users/{userId}/days/{dateStr} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // v2 day data. Admin gets read access so the dashboard can compute stats.
+    match /users/{userId}/discipliners/{disciplinerId}/days/{dateStr} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)/profile/v1).data.role == 'admin';
+    }
+
+    // Discipliner config. Admin gets read access for the user-detail drawer
+    // and top-discipliners aggregation.
+    match /users/{userId}/disciplinerConfig/{docId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)/profile/v1).data.role == 'admin';
+    }
+
+    // Profile / role storage.
+    match /users/{userId}/profile/{docId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      // Profile is writable by the user, but `role` is not.
+      // resource == null covers first-time creation by useAuth.
+      allow write: if request.auth != null
+        && request.auth.uid == userId
+        && (resource == null || !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']));
+    }
+
+    // Admin user listing — authorizes collectionGroup('profile').
+    // The admin dashboard no longer uses collectionGroup for `days` or
+    // `disciplinerConfig` (it iterates per user), so only `profile` needs
+    // a recursive rule here.
+    match /{path=**}/profile/{docId} {
+      allow read: if request.auth != null
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)/profile/v1).data.role == 'admin';
+    }
+  }
 }
 ```
+
+**Why the recursive rule is required.** A normal `match /users/{userId}/profile/{docId}` rule only authorizes path-based reads (`doc(...)` or `getDocs(collection(...))`). It does NOT authorize `collectionGroup('profile')`. For that, Firestore needs a rule whose path is `match /{path=**}/profile/{docId}` — same final segment, parent wildcard.
+
+**When to drop the v1 `users/{userId}/days` rule.** Once every active user's localStorage carries the per-month migration flags (`discipliner_gym_migrated_YYYY-MM`) for every month they had data, the v1 collection in Firestore is empty and the rule can be removed. Until then, removing the rule will silently break the migration: `useMonthData` reads from v1 to copy into v2, that read fails with `permission-denied`, and existing users see empty calendars for unmigrated months.
+
+### Profile auto-creation
+
+`useAuth` seeds `users/{uid}/profile/v1` on the user's first sign-in (when `getDoc(...).exists()` is false). Subsequent sign-ins only refresh `displayName`/`email` via a merge write that excludes `role` and `createdAt`. This means:
+- Users who signed in before this profile system was added get a profile created the next time they log in (with `role: 'user'`).
+- An admin promoted via the Firebase console stays an admin — the client never overwrites `role`.
 
 ## Commands
 

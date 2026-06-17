@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
 import type { User } from 'firebase/auth';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db, isFirebaseConfigured } from '../firebase';
 
 export function useAuth() {
@@ -15,11 +15,29 @@ export function useAuth() {
       setUser(u);
       setLoading(false);
       if (u && db) {
-        await setDoc(
-          doc(db, 'users', u.uid, 'profile', 'v1'),
-          { role: 'user', createdAt: serverTimestamp(), displayName: u.displayName, email: u.email },
-          { merge: true }
-        );
+        const ref = doc(db, 'users', u.uid, 'profile', 'v1');
+        try {
+          const snap = await getDoc(ref);
+          if (!snap.exists()) {
+            // First sign-in: seed the profile with role='user'. Existing users
+            // (including admins) keep whatever role is already in Firestore.
+            await setDoc(ref, {
+              role: 'user',
+              createdAt: serverTimestamp(),
+              displayName: u.displayName,
+              email: u.email,
+            });
+          } else {
+            // Refresh mutable fields only — never touch role or createdAt.
+            await setDoc(
+              ref,
+              { displayName: u.displayName, email: u.email },
+              { merge: true }
+            );
+          }
+        } catch (err) {
+          console.error('Failed to seed/update profile', err);
+        }
       }
     });
   }, []);
