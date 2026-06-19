@@ -18,8 +18,8 @@ const STATUS_OPTIONS: { status: Status; label: string; color: string; activeRing
   { status: 'red', label: 'Skipped', color: 'bg-red-500', activeRing: 'ring-red-400' },
 ];
 
-const NOTE_MAX = 280;
-const NOTE_WARN = 260;
+const NOTE_MAX = 2000;
+const NOTE_WARN = 1900;
 
 export function StatusModal({ dateStr, day, discipliner, entry, note, onUpdate, onUpdateNote, onClose }: StatusModalProps) {
   const [noteText, setNoteText] = useState(note ?? '');
@@ -106,6 +106,11 @@ export function StatusModal({ dateStr, day, discipliner, entry, note, onUpdate, 
         <p className="text-xs text-slate-400 dark:text-slate-500 mt-3 text-center">
           Tap a color to toggle. Tap again to clear.
         </p>
+        <div className="mt-2 flex justify-center gap-4 text-[10px] text-slate-400 dark:text-slate-500">
+          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" /> Done</span>
+          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-yellow-400 inline-block" /> Partial</span>
+          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500 inline-block" /> Skipped</span>
+        </div>
       </div>
     </div>
   );

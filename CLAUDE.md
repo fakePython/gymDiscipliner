@@ -15,11 +15,13 @@ There is no test runner configured.
 
 ## Architecture
 
-A React 19 + TypeScript habit tracker. Each user has multiple "discipliners" (tabs); each discipliner has 1–5 fields and its own monthly calendar. Each day per field is `green | yellow | red | none`.
+A React 19 + TypeScript habit tracker. Each user has multiple "discipliners" (tabs); each discipliner has 1–5 fields and its own monthly calendar. Each day per field is `green | yellow | red | none`. Each day also supports a free-text note (1000 char limit).
 
-**Two parallel data paths.** `useMonthData` and `useDiscipliners` both read/write Firestore when `isFirebaseConfigured` is true (env vars present + `db` initialized) and fall back to localStorage otherwise. Firestore uses `onSnapshot` for live updates; the local path is a plain state read. Both paths must stay in sync — any new mutation has to write to both. Look at `useMonthData.updateStatus` for the pattern.
+**Three parallel data paths.** `useMonthData`, `useNotes`, and `useDiscipliners` all read/write Firestore when `isFirebaseConfigured` is true (env vars present + `db` initialized) and fall back to localStorage otherwise. Firestore uses `onSnapshot` for live updates; the local path is a plain state read. Both paths must stay in sync — any new mutation has to write to both. Look at `useMonthData.updateStatus` for the pattern; `useNotes.updateNote` follows the same dual-write approach.
 
-**Firestore layout** (per user): `users/{uid}/discipliners/{disciplinerId}/days/{YYYY-MM-DD}` for day data, `users/{uid}/disciplinerConfig/v1` for tab/field config, `users/{uid}/profile/v1` for `{ role, displayName, email, createdAt }`. The admin dashboard reads across users via `collectionGroup`, so Firestore security rules must restrict those reads to admins.
+**Notes** are stored separately from status data via `useNotes` — own localStorage key (`discipliner_{id}_notes`) and own Firestore sub-collection (`users/{uid}/discipliners/{id}/notes/{YYYY-MM-DD}`, `{ text: string }`). Max 2000 characters (warn at 1900). Notes are edited inside `StatusModal` and displayed in a panel below the calendar when a day is selected. **Firestore layout** (per user): `users/{uid}/discipliners/{disciplinerId}/days/{YYYY-MM-DD}` for day status data, `users/{uid}/discipliners/{disciplinerId}/notes/{YYYY-MM-DD}` for daily notes, `users/{uid}/disciplinerConfig/v1` for tab/field config, `users/{uid}/profile/v1` for `{ role, displayName, email, createdAt }`. The admin dashboard reads across users via `collectionGroup`, so Firestore security rules must restrict those reads to admins. Notes are user-only — the README has the required Firestore rule.
+
+**Day selection UX.** First tap on a day selects it (blue border) and shows its note below the calendar. Today always has a green border when not selected. A second tap on the same day opens `StatusModal` for color/note editing. `StatusModal` can also be opened via the "Edit status" button in the note panel.
 
 **Admin route.** `/admin` is gated by `AdminGuard`, which reads `users/{uid}/profile/v1.role`. Promotion happens manually in the Firebase console — the app never writes the `role` field, and the recommended security rule (in README) blocks user writes to it.
 
@@ -32,7 +34,7 @@ A React 19 + TypeScript habit tracker. Each user has multiple "discipliners" (ta
 ## Conventions
 
 - Date strings are `YYYY-MM-DD` everywhere; `toDateStr(year, month, day)` in `src/utils/dateHelpers.ts` is the only formatter. `month` is 0-indexed (JS `Date` convention).
-- localStorage keys use the `discipliner_` prefix (e.g. `discipliner_gym_days`, `discipliner_config`, `discipliner_theme`). The legacy `gymDescipliner_` prefix only appears in the v1 migration path.
+- localStorage keys use the `discipliner_` prefix (e.g. `discipliner_gym_days`, `discipliner_gym_notes`, `discipliner_config`, `discipliner_theme`). The legacy `gymDescipliner_` prefix only appears in the v1 migration path.
 - `DisciplinerField.id` is a stable UUID. The `label` is what the user sees and can rename freely; never use `label` as a key — day entries are keyed by `id`.
 - The Gym preset (`id: 'gym'`) is fully locked: no rename, no field edits, no delete. Learning is rename/field-editable but not deletable. Custom discipliners are fully editable. See `GYM_PRESET` and `LEARNING_PRESET` in `src/utils/constants.ts`; the merge logic is in `useDiscipliners`.
 - Max 5 discipliners total, max 5 fields per discipliner (`MAX_DISCIPLINERS`, `MAX_FIELDS`).

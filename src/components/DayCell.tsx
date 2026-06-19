@@ -7,6 +7,7 @@ interface DayCellProps {
   month: number;
   fields: DisciplinerField[];
   entry?: DayEntry;
+  isSelected?: boolean;
   onClick: () => void;
 }
 
@@ -17,8 +18,14 @@ const STATUS_BG: Record<Status, string> = {
   none: '',
 };
 
-export function DayCell({ day, year, month, fields, entry, onClick }: DayCellProps) {
+export function DayCell({ day, year, month, fields, entry, isSelected, onClick }: DayCellProps) {
   const today = isToday(year, month, day);
+
+  const ringClass = isSelected
+    ? 'ring-2 ring-blue-500 dark:ring-blue-400'
+    : today
+      ? 'ring-2 ring-emerald-500 dark:ring-emerald-400'
+      : 'ring-1 ring-slate-200 dark:ring-slate-700/50';
 
   return (
     <button
@@ -27,10 +34,7 @@ export function DayCell({ day, year, month, fields, entry, onClick }: DayCellPro
         relative overflow-hidden rounded-lg min-h-[60px] md:min-h-[90px]
         transition-all cursor-pointer select-none
         hover:ring-2 hover:ring-blue-400/50
-        ${today
-          ? 'ring-2 ring-blue-500 dark:ring-blue-400'
-          : 'ring-1 ring-slate-200 dark:ring-slate-700/50'
-        }
+        ${ringClass}
         bg-white dark:bg-slate-800/40
       `}
     >
@@ -43,9 +47,11 @@ export function DayCell({ day, year, month, fields, entry, onClick }: DayCellPro
         className={`
           relative z-10 flex items-center justify-center w-full h-full
           text-lg md:text-xl font-bold
-          ${today
-            ? 'text-blue-600 dark:text-blue-300'
-            : 'text-slate-700 dark:text-slate-200'
+          ${today && !isSelected
+            ? 'text-emerald-600 dark:text-emerald-400'
+            : isSelected
+              ? 'text-blue-600 dark:text-blue-300'
+              : 'text-slate-700 dark:text-slate-200'
           }
         `}
       >

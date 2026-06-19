@@ -6,7 +6,8 @@ A React + TypeScript monthly calendar app for tracking daily habits across multi
 
 - **Multi-tab**: switch between Gym, Learning, and up to 3 custom discipliners (5 total)
 - **Custom discipliners**: create with a tab name and 1–5 field names; edit names; delete entirely
-- **Per-discipliner calendar**: tap any day to set green / yellow / red status for each field
+- **Per-discipliner calendar**: tap any day to select it (green border = today, blue border = selected); tap again to open the status editor
+- **Day note panel**: selected day's note appears in full below the calendar; tap "Edit status" or tap the day again to open the status/note editor (2000 char limit)
 - **Fully isolated data**: each tab has its own Firestore subcollection and localStorage key
 - **Presets**: Gym (locked) and Learning (editable name + fields, not deletable)
 - **Dark mode** toggle with system preference detection
@@ -71,10 +72,15 @@ useMonthData(disciplinerId, year, month, uid)
   └─ localStorage: discipliner_{id}_days
   └─ returns: Map<dateStr, DayEntry>  +  updateStatus(dateStr, fieldId, status)
 
+useNotes(disciplinerId, year, month, uid)
+  └─ Firestore: users/{uid}/discipliners/{id}/notes/{YYYY-MM-DD}  ← { text: string }
+  └─ localStorage: discipliner_{id}_notes
+  └─ returns: Map<dateStr, string>  +  updateNote(dateStr, note)
+
         ↓
 
 Calendar(fields, data) → DayCell(fields, entry)
-StatusModal(discipliner, entry, onUpdate)
+StatusModal(discipliner, entry, note, onUpdate, onUpdateNote)
 
 useAdminData()  [admin only]
   └─ collectionGroup('profile')       → user list
@@ -91,14 +97,20 @@ Firestore
     ├── disciplinerConfig/v1          ← DisciplinerConfig (tab names, field labels, custom list)
     └── discipliners/
         ├── gym/days/{YYYY-MM-DD}     ← { gym, diet, sleep }
+        ├── gym/notes/{YYYY-MM-DD}    ← { text: string }
         ├── learning/days/{YYYY-MM-DD}
+        ├── learning/notes/{YYYY-MM-DD}
         └── {uuid}/days/{YYYY-MM-DD} ← custom discipliners
+        └── {uuid}/notes/{YYYY-MM-DD}
 
 localStorage
 ├── discipliner_config               ← DisciplinerConfig (offline fallback)
 ├── discipliner_gym_days             ← { [YYYY-MM-DD]: DayEntry }
+├── discipliner_gym_notes            ← { [YYYY-MM-DD]: string }
 ├── discipliner_learning_days
+├── discipliner_learning_notes
 ├── discipliner_{uuid}_days
+├── discipliner_{uuid}_notes
 └── discipliner_theme                ← 'light' | 'dark'
 ```
 
@@ -139,6 +151,7 @@ src/
 ├── hooks/
 │   ├── useDiscipliners.ts           # Config persistence; discipliner CRUD
 │   ├── useMonthData.ts              # Per-discipliner calendar data (Firestore + localStorage)
+│   ├── useNotes.ts                  # Per-discipliner daily notes (separate storage from useMonthData)
 │   ├── useAuth.ts                   # Firebase Google Auth + profile seeding
 │   ├── useTheme.ts                  # Dark mode toggle
 │   ├── useAdminRole.ts              # Reads users/{uid}/profile/v1 → isAdmin
@@ -206,6 +219,11 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
       allow read: if request.auth != null
         && get(/databases/$(database)/documents/users/$(request.auth.uid)/profile/v1).data.role == 'admin';
+    }
+
+    // Daily notes — stored separately from day data; user-only access.
+    match /users/{userId}/discipliners/{disciplinerId}/notes/{dateStr} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
     // Discipliner config. Admin gets read access for the user-detail drawer
