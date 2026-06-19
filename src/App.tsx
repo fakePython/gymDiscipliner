@@ -10,6 +10,7 @@ import { EditDisciplinerModal } from './components/EditDisciplinerModal';
 import { AdminGuard } from './components/admin/AdminGuard';
 import { AdminPage } from './pages/AdminPage';
 import { useMonthData } from './hooks/useMonthData';
+import { useNotes } from './hooks/useNotes';
 import { useTheme } from './hooks/useTheme';
 import { useAuth } from './hooks/useAuth';
 import { useDiscipliners } from './hooks/useDiscipliners';
@@ -29,6 +30,7 @@ function App() {
   const { discipliners, createDiscipliner, updateDiscipliner, deleteDiscipliner } = useDiscipliners(user?.uid ?? null);
   const activeDiscipliner = discipliners.find((d) => d.id === activeDisciplinerId) ?? discipliners[0];
   const { data, loading, updateStatus } = useMonthData(activeDiscipliner.id, year, month, user?.uid ?? null);
+  const { notes, updateNote } = useNotes(activeDiscipliner.id, year, month, user?.uid ?? null);
   const { theme, toggle } = useTheme();
 
   const handlePrev = () => {
@@ -123,7 +125,9 @@ function App() {
           day={selectedDate.day}
           discipliner={activeDiscipliner}
           entry={data.get(selectedDate.dateStr)}
+          note={notes.get(selectedDate.dateStr)}
           onUpdate={handleUpdate}
+          onUpdateNote={updateNote}
           onClose={() => setSelectedDate(null)}
         />
       )}

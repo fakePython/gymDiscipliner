@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import type { Discipliner, DayEntry, Status } from '../types';
 
 interface StatusModalProps {
@@ -6,7 +6,9 @@ interface StatusModalProps {
   day: number;
   discipliner: Discipliner;
   entry?: DayEntry;
+  note?: string;
   onUpdate: (dateStr: string, fieldId: string, status: Status) => void;
+  onUpdateNote: (dateStr: string, note: string) => void;
   onClose: () => void;
 }
 
@@ -16,7 +18,11 @@ const STATUS_OPTIONS: { status: Status; label: string; color: string; activeRing
   { status: 'red', label: 'Skipped', color: 'bg-red-500', activeRing: 'ring-red-400' },
 ];
 
-export function StatusModal({ dateStr, day, discipliner, entry, onUpdate, onClose }: StatusModalProps) {
+const NOTE_MAX = 280;
+const NOTE_WARN = 260;
+
+export function StatusModal({ dateStr, day, discipliner, entry, note, onUpdate, onUpdateNote, onClose }: StatusModalProps) {
+  const [noteText, setNoteText] = useState(note ?? '');
 
   useEffect(() => {
     function handleEscape(e: KeyboardEvent) {
@@ -81,7 +87,23 @@ export function StatusModal({ dateStr, day, discipliner, entry, onUpdate, onClos
           })}
         </div>
 
-        <p className="text-xs text-slate-400 dark:text-slate-500 mt-4 text-center">
+        <div className="mt-4">
+          <label className="block text-xs font-medium text-slate-500 dark:text-slate-400 mb-1">Notes</label>
+          <textarea
+            rows={3}
+            maxLength={NOTE_MAX}
+            value={noteText}
+            onChange={(e) => setNoteText(e.target.value)}
+            onBlur={() => onUpdateNote(dateStr, noteText)}
+            placeholder="How did today go…"
+            className="w-full resize-none rounded-lg border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 text-sm text-slate-700 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+          />
+          <p className={`text-right text-[10px] mt-0.5 ${noteText.length >= NOTE_WARN ? 'text-red-500' : 'text-slate-400 dark:text-slate-500'}`}>
+            {noteText.length} / {NOTE_MAX}
+          </p>
+        </div>
+
+        <p className="text-xs text-slate-400 dark:text-slate-500 mt-3 text-center">
           Tap a color to toggle. Tap again to clear.
         </p>
       </div>
