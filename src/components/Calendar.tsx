@@ -7,12 +7,13 @@ interface CalendarProps {
   month: number;
   fields: DisciplinerField[];
   data: Map<string, DayEntry>;
+  selectedDateStr?: string | null;
   onDayClick: (dateStr: string, day: number) => void;
 }
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-export function Calendar({ year, month, fields, data, onDayClick }: CalendarProps) {
+export function Calendar({ year, month, fields, data, selectedDateStr, onDayClick }: CalendarProps) {
   const daysInMonth = getDaysInMonth(year, month);
   const firstDay = getFirstDayOfWeek(year, month);
 
@@ -31,6 +32,7 @@ export function Calendar({ year, month, fields, data, onDayClick }: CalendarProp
         month={month}
         fields={fields}
         entry={data.get(dateStr)}
+        isSelected={dateStr === selectedDateStr}
         onClick={() => onDayClick(dateStr, day)}
       />
     );
